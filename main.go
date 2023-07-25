@@ -1,13 +1,30 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
+
+	"github.com/tebeka/selenium"
 )
 
-const ERROR = "ERROR: "
+const (
+	ERROR         = "ERROR: "
+	CHROME        = "chrome"
+	SELENIUM_PORT = 4444
+)
 
 var logger = log.Logger{}
+var wd selenium.WebDriver
+
+func InitSelenium() {
+	var err error
+	capabilities := selenium.Capabilities{"browserName": CHROME}
+	wd, err = selenium.NewRemote(capabilities, fmt.Sprintf("http://localhost:%d/wd/hub", SELENIUM_PORT))
+	if err != nil {
+		log.Fatalf("Failed to connect to the WebDriver: %v", err)
+	}
+}
 
 func InitLogging() {
 	logger.SetFlags(log.Ldate | log.Ltime)
@@ -16,21 +33,17 @@ func InitLogging() {
 
 func main() {
 	InitLogging()
+	InitSelenium()
 
 	const link = "https://www.sephora.ro/"
 
-	extractor := HtmlExtractor{link: link}
-	hp, err := extractor.GetHtmlPage()
+	node, err := LinkToHtmlNode(link, false)
+
 	if err != nil {
-		logger.Fatalf("Could not get the html page requested")
+		logger.Fatalf(ERROR + "Could not get html node")
 	}
 
-	node, err := ParseHtml(hp)
-	if err != nil {
-		logger.Fatalf("Could not parse the html page")
-	}
-
-	links := ProductLinks{BaseLink: link}
+	links := &ProductLinks{BaseLink: link}
 	logger.Println("Wil start processing node to get links to all products pages")
 	err = links.ProcessNode(node, "Vezi toate produsele")
 	if err != nil {
@@ -41,4 +54,8 @@ func main() {
 	for _, l := range links.links {
 		logger.Println(l)
 	}
+
+	NewNode, err := LinkToHtmlNode(links.links[0], true)
+	shop := &Shop{id: 1, name: "Sephora"}
+	err = shop.ProcessNode(NewNode, "test")
 }

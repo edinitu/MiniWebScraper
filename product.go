@@ -1,8 +1,8 @@
 package main
 
 type Product struct {
-	id int64
-
+	id            uint64
+	ShopId        uint64
 	name          string
 	category      string
 	price         float64

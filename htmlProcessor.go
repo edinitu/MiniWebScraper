@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -8,7 +9,7 @@ import (
 )
 
 type NodeProcessor interface {
-	ProcessNode(n *html.Node, s string) (interface{}, error)
+	ProcessNode(n *html.Node, s string) error
 }
 
 type ProductLinks struct {
@@ -31,16 +32,19 @@ func (p *ProductLinks) ProcessNode(n *html.Node, s string) error {
 	return nil
 }
 
-/*
-Get a node to the root HTML element from the HTML page given as a string.
-*/
-func ParseHtml(text string) (*html.Node, error) {
-	r := strings.NewReader(text)
-	node, err := html.Parse(r)
-	if err != nil {
-		logger.Println(ERROR+" Could not parse html page ", err)
-		return nil, err
-	}
+type Shop struct {
+	id   uint64
+	name string
+}
 
-	return node, nil
+func (sh *Shop) ProcessNode(n *html.Node, str string) error {
+	if n.Type == html.ElementNode && n.DataAtom == atom.Span {
+		if n.FirstChild != nil && n.FirstChild.Type == html.TextNode {
+			fmt.Println(n.FirstChild.Data)
+		}
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		sh.ProcessNode(c, str)
+	}
+	return nil
 }
