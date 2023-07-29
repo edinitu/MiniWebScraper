@@ -61,10 +61,23 @@ func GetPageWithSelenium(link string) string {
 	time.Sleep(5 * time.Second)
 
 	// Get the dynamic HTML content
-	pageSource, err := wd.PageSource()
-	if err != nil {
-		log.Fatalf("Failed to get page source: %v", err)
+	// TODO make scrolls a configuration per shop, should be >= 1
+	var scrolls int = 7
+	var pageSource string = ""
+
+	logger.Printf("Scrolling the page %v", link)
+	for scrolls > 0 {
+		_, err := wd.ExecuteScript("window.scrollTo(0,document.body.scrollHeight);", nil)
+		if err != nil {
+			log.Fatalf("Failed to scroll source page: %v", err)
+		}
+		// wait for the new elements to load
+		time.Sleep(2 * time.Second)
+		page, _ := wd.PageSource()
+		pageSource += page
+		scrolls--
 	}
+
 	return pageSource
 }
 

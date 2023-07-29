@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 
 	"github.com/tebeka/selenium"
 )
@@ -50,12 +51,16 @@ func main() {
 		logger.Fatalf("Could not process html node")
 	}
 
-	logger.Println("Got the following links:")
-	for _, l := range links.links {
-		logger.Println(l)
-	}
+	logger.Printf("Got %d links: ", len(links.links))
 
 	NewNode, err := LinkToHtmlNode(links.links[0], true)
 	shop := &Shop{id: 1, name: "Sephora"}
-	err = shop.ProcessNode(NewNode, "test")
+	r := regexp.MustCompile("[a-zA-Z ]+\n[a-zA-Z ;+,]+\n[a-zA-Z ;+,]+\\n")
+	err = shop.ProcessNode(NewNode, "")
+	err = shop.ExtractProductsFromText([]*regexp.Regexp{r})
+	allText = ""
+	if err != nil {
+		logger.Fatalf("Couldn't process node for link %v", links.links[0])
+	}
+
 }
