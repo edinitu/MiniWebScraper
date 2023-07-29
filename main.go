@@ -53,11 +53,13 @@ func main() {
 
 	logger.Printf("Got %d links: ", len(links.links))
 
+	// TODO this should be made more abstract
 	NewNode, err := LinkToHtmlNode(links.links[0], true)
 	shop := &Shop{id: 1, name: "Sephora"}
 	r := regexp.MustCompile("[a-zA-Z ]+\n[a-zA-Z ;+,]+\n[a-zA-Z ;+,]+\\n")
 	err = shop.ProcessNode(NewNode, "")
 	err = shop.ExtractProductsFromText([]*regexp.Regexp{r})
+	// after one processing is done, clear global variable
 	allText = ""
 	if err != nil {
 		logger.Fatalf("Couldn't process node for link %v", links.links[0])

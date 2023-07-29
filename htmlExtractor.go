@@ -81,6 +81,7 @@ func GetPageWithSelenium(link string) string {
 	return pageSource
 }
 
+// @ToBeTested
 func BuildHttpRequest(link string) (*http.Request, error) {
 	logger.Println("Sending GET request to", link)
 	request, err := http.NewRequest("GET", link, nil)
@@ -117,6 +118,7 @@ func SendRequestGetHtmlBody(request *http.Request) (string, error) {
 
 /*
 Get a node to the root HTML element from the HTML page given as a string.
+@ ToBeTested
 */
 func ParseHtml(text string) (*html.Node, error) {
 	r := strings.NewReader(text)
@@ -129,6 +131,13 @@ func ParseHtml(text string) (*html.Node, error) {
 	return node, nil
 }
 
+/*
+Given a link to a webpage, return the head HTML node for that page.
+
+	Arguments: - the webpage link as a string
+			   - flag for selenium use in case we want to load JS elements that are
+				 not loaded automatically from the usual http.Request
+*/
 func LinkToHtmlNode(link string, selenium bool) (*html.Node, error) {
 	extractor := HtmlExtractor{link: link}
 	hp, err := extractor.GetHtmlPage(selenium)

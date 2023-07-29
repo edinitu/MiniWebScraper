@@ -10,6 +10,11 @@ import (
 	"golang.org/x/net/html/atom"
 )
 
+// This holds the all the text extracted from a HTML page.
+// Its whole purpose is to be a starting point for various
+// filters in order to extract relevant information.
+var allText string
+
 type NodeProcessor interface {
 	ProcessNode(n *html.Node, exps []*regexp.Regexp) error
 }
@@ -39,12 +44,9 @@ type Shop struct {
 	name string
 }
 
-var allText string
-
 func (sh *Shop) ProcessNode(n *html.Node, s string) error {
 	if n.Type == html.ElementNode && n.DataAtom == atom.Span {
 		if n.FirstChild != nil && n.FirstChild.Type == html.TextNode {
-			//fmt.Println(n.FirstChild.Data)
 			allText += n.FirstChild.Data + "\n"
 		}
 	}
@@ -54,25 +56,26 @@ func (sh *Shop) ProcessNode(n *html.Node, s string) error {
 	return nil
 }
 
+// TODO this should have a loop over multiple regex (to get info like promotions, price etc)
 func (sh *Shop) ExtractProductsFromText(r []*regexp.Regexp) error {
 	firstMatches := r[0].FindAllString(allText, -1)
-	firstFilter(firstMatches)
-	//fmt.Println(filteredValues)
-
+	filteredValues := firstFilter(firstMatches)
+	fmt.Println(filteredValues)
 	return nil
 }
 
+// @ToBeTested
 func firstFilter(s []string) []string {
 	res := []string{}
 	for _, w := range s {
 		if len(w) > 5 && isTruePositive(w) {
-			fmt.Println("string:", w)
 			res = append(res, w)
 		}
 	}
 	return res
 }
 
+// @ToBeTested
 func isTruePositive(s string) bool {
 	count := 0
 	for _, c := range s {
