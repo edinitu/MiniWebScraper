@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"unicode"
@@ -42,6 +43,10 @@ func (p *ProductLinks) ProcessNode(n *html.Node, s string) error {
 type Shop struct {
 	id   uint64
 	name string
+
+	categories []string
+
+	// TODO regexs should be a field here
 }
 
 func (sh *Shop) ProcessNode(n *html.Node, s string) error {
@@ -58,18 +63,66 @@ func (sh *Shop) ProcessNode(n *html.Node, s string) error {
 
 // TODO this should have a loop over multiple regex (to get info like promotions, price etc)
 func (sh *Shop) ExtractProductsFromText(r []*regexp.Regexp) error {
+	logger.Println("Initialize products from text")
 	firstMatches := r[0].FindAllString(allText, -1)
 	filteredValues := firstFilter(firstMatches)
-	fmt.Println(filteredValues)
+	filteredValues = secondFilter(filteredValues)
+
+	products := initProducts(filteredValues, sh.id)
+	setRemainingInfo(products)
+	//fmt.Println(filteredValues)
 	return nil
+}
+
+// @ToBeTested
+func initProducts(s []string, shopId uint64) map[string]Product {
+	var c uint64 = 0
+	products := make(map[string]Product)
+	// TODO This should be based on shop ID
+	for _, seq := range s {
+		lines := strings.Split(seq, "\n")
+		p := Product{
+			id:               c,
+			ShopId:           shopId,
+			brand:            strings.TrimSpace(lines[0]),
+			name:             strings.TrimSpace(lines[1]),
+			ShortDescription: strings.TrimSpace(lines[2]),
+		}
+		_, ok := products[p.name]
+		if !ok {
+			products[p.name] = p
+		}
+	}
+	return products
+}
+
+func setRemainingInfo(products map[string]Product) {
+	for _, p := range products {
+		r := regexp.MustCompile(p.name)
+		s := r.FindIndex([]byte(allText))
+		fmt.Println(allText[s[0] : s[0]+100])
+		os.Exit(1)
+	}
 }
 
 // @ToBeTested
 func firstFilter(s []string) []string {
 	res := []string{}
-	for _, w := range s {
-		if len(w) > 5 && isTruePositive(w) {
-			res = append(res, w)
+	for _, seq := range s {
+		if len(seq) > 5 && isTruePositive(seq) {
+			res = append(res, seq)
+		}
+	}
+	return res
+}
+
+// @ToBeTested
+func secondFilter(s []string) []string {
+	res := []string{}
+	for _, seq := range s {
+		firstLine := seq[:strings.IndexByte(seq, byte('\n'))]
+		if isJustUpperCase(firstLine) {
+			res = append(res, seq)
 		}
 	}
 	return res
@@ -84,4 +137,14 @@ func isTruePositive(s string) bool {
 		}
 	}
 	return count > 10
+}
+
+// @ToBeTested
+func isJustUpperCase(s string) bool {
+	for _, r := range s {
+		if !(unicode.IsSpace(r) || unicode.IsUpper(r)) {
+			return false
+		}
+	}
+	return true
 }

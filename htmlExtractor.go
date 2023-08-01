@@ -62,7 +62,7 @@ func GetPageWithSelenium(link string) string {
 
 	// Get the dynamic HTML content
 	// TODO make scrolls a configuration per shop, should be >= 1
-	var scrolls int = 7
+	var scrolls int = 10
 	var pageSource string = ""
 
 	logger.Printf("Scrolling the page %v", link)

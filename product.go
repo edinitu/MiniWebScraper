@@ -1,14 +1,18 @@
 package main
 
+import "fmt"
+
 type Product struct {
-	id            uint64
-	ShopId        uint64
-	name          string
-	category      string
-	price         float64
-	IsPromotion   bool
-	OriginalPrice float64
-	quantity      int64
+	id               uint64
+	ShopId           uint64
+	brand            string
+	name             string
+	ShortDescription string
+	category         string
+	price            string
+	IsPromotion      bool
+	OriginalPrice    string
+	quantity         string
 }
 
 func (p *Product) SetDefaults() {
@@ -22,8 +26,17 @@ func (p Product) CheckValues() {
 }
 
 func (p Product) GetStringRepresentation() string {
-	//TODO
-	return ""
+	return "Product description: \n" +
+		"	ID: " + fmt.Sprint(p.id) + "\n" +
+		"	ShopId: " + fmt.Sprint(p.ShopId) + "\n" +
+		"	Brand: " + p.brand + "\n" +
+		"	Name: " + p.name + "\n" +
+		"	Short Description: " + p.ShortDescription + "\n" +
+		"	Category: " + p.category + "\n" +
+		"	Price: " + p.price + "\n" +
+		"	Promotion: " + fmt.Sprint(p.IsPromotion) + "\n" +
+		"	Original price: " + p.OriginalPrice + "\n" +
+		"	Quantity: " + p.quantity
 }
 
 func (p Product) Serialize() []byte {
