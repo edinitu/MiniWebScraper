@@ -57,8 +57,11 @@ func main() {
 	NewNode, err := LinkToHtmlNode(links.links[0], true)
 	shop := &Shop{id: 1, name: "Sephora"}
 	r := regexp.MustCompile("[a-zA-Z ]+\n[a-zA-Z ;+,]+\n[a-zA-Z ;+,]+\\n")
+	r2 := regexp.MustCompile(`[0-9,. ]+Lei`)
+	r3 := regexp.MustCompile(`[0-9,. ]+Lei\s+\/\s+[0-9]+[a-z]`)
+
 	err = shop.ProcessNode(NewNode, "")
-	err = shop.ExtractProductsFromText([]*regexp.Regexp{r})
+	err = shop.ExtractProductsFromText([]*regexp.Regexp{r, r2, r3})
 	// after one processing is done, clear global variable
 	allText = ""
 	if err != nil {

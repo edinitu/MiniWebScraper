@@ -1,3 +1,4 @@
+// package main
 package main
 
 import (
@@ -5,6 +6,8 @@ import (
 	"os"
 	"regexp"
 	"strings"
+
+	// "fmt"	strings"
 	"unicode"
 
 	"golang.org/x/net/html"
@@ -68,9 +71,11 @@ func (sh *Shop) ExtractProductsFromText(r []*regexp.Regexp) error {
 	filteredValues := firstFilter(firstMatches)
 	filteredValues = secondFilter(filteredValues)
 
+	//	products := initProducts(f
 	products := initProducts(filteredValues, sh.id)
-	setRemainingInfo(products)
+	setRemainingInfo(products, []*regexp.Regexp{r[1], r[2]})
 	//fmt.Println(filteredValues)
+	fmt.Println(filteredValues)
 	return nil
 }
 
@@ -82,11 +87,11 @@ func initProducts(s []string, shopId uint64) map[string]Product {
 	for _, seq := range s {
 		lines := strings.Split(seq, "\n")
 		p := Product{
-			id:               c,
-			ShopId:           shopId,
-			brand:            strings.TrimSpace(lines[0]),
-			name:             strings.TrimSpace(lines[1]),
-			ShortDescription: strings.TrimSpace(lines[2]),
+			id:       c,
+			ShopId:   shopId,
+			brand:    strings.TrimSpace(lines[0]),
+			name:     strings.TrimSpace(lines[1]),
+			category: strings.TrimSpace(lines[2]),
 		}
 		_, ok := products[p.name]
 		if !ok {
@@ -96,13 +101,24 @@ func initProducts(s []string, shopId uint64) map[string]Product {
 	return products
 }
 
-func setRemainingInfo(products map[string]Product) {
-	for _, p := range products {
+func setRemainingInfo(products map[string]Product, rl []*regexp.Regexp) {
+	for key, p := range products {
 		r := regexp.MustCompile(p.name)
 		s := r.FindIndex([]byte(allText))
-		fmt.Println(allText[s[0] : s[0]+100])
+		p.price = rl[0].FindString(allText[s[1] : s[1]+80])
+		PricePerQuantity := rl[1].FindString(allText[s[1] : s[1]+100])
+		PricePerQuantity = strings.Replace(PricePerQuantity, "\n", "", -1)
+		// TODO Change the following assignment when getQuantity() is done
+		p.quantity = strings.TrimSpace(PricePerQuantity)
+		fmt.Println(p.GetStringRepresentation())
+		products[key] = p
 		os.Exit(1)
 	}
+}
+
+func getQuantity(price string, PricePerQuantity string) string {
+	//TODO
+	return ""
 }
 
 // @ToBeTested
