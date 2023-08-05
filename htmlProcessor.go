@@ -2,8 +2,6 @@
 package main
 
 import (
-	"fmt"
-	"os"
 	"regexp"
 	"strings"
 
@@ -28,6 +26,13 @@ type ProductLinks struct {
 	links    []string
 }
 
+type Shop struct {
+	id         uint64
+	name       string
+	patterns   []*regexp.Regexp
+	categories []string
+}
+
 func (p *ProductLinks) ProcessNode(n *html.Node, s string) error {
 	if n.Type == html.ElementNode && n.DataAtom == atom.A {
 		if n.FirstChild != nil && n.FirstChild.Type == html.TextNode {
@@ -43,15 +48,6 @@ func (p *ProductLinks) ProcessNode(n *html.Node, s string) error {
 	return nil
 }
 
-type Shop struct {
-	id   uint64
-	name string
-
-	categories []string
-
-	// TODO regexs should be a field here
-}
-
 func (sh *Shop) ProcessNode(n *html.Node, s string) error {
 	if n.Type == html.ElementNode && n.DataAtom == atom.Span {
 		if n.FirstChild != nil && n.FirstChild.Type == html.TextNode {
@@ -64,18 +60,17 @@ func (sh *Shop) ProcessNode(n *html.Node, s string) error {
 	return nil
 }
 
-// TODO this should have a loop over multiple regex (to get info like promotions, price etc)
-func (sh *Shop) ExtractProductsFromText(r []*regexp.Regexp) error {
+/*
+* Using the HTML text extracted, populate a map with all the products using different filters.
+ */
+func (sh *Shop) ExtractProductsFromText() error {
 	logger.Println("Initialize products from text")
-	firstMatches := r[0].FindAllString(allText, -1)
+	firstMatches := sh.patterns[0].FindAllString(allText, -1)
 	filteredValues := firstFilter(firstMatches)
 	filteredValues = secondFilter(filteredValues)
 
-	//	products := initProducts(f
 	products := initProducts(filteredValues, sh.id)
-	setRemainingInfo(products, []*regexp.Regexp{r[1], r[2]})
-	//fmt.Println(filteredValues)
-	fmt.Println(filteredValues)
+	setRemainingInfo(products, []*regexp.Regexp{sh.patterns[1], sh.patterns[2], sh.patterns[3]})
 	return nil
 }
 
@@ -102,18 +97,27 @@ func initProducts(s []string, shopId uint64) map[string]Product {
 }
 
 func setRemainingInfo(products map[string]Product, rl []*regexp.Regexp) {
+	notFoundProducts := []string{}
 	for key, p := range products {
 		r := regexp.MustCompile(p.name)
 		s := r.FindIndex([]byte(allText))
+		if s == nil {
+			notFoundProducts = append(notFoundProducts, p.name)
+			continue
+		}
 		p.price = rl[0].FindString(allText[s[1] : s[1]+80])
 		PricePerQuantity := rl[1].FindString(allText[s[1] : s[1]+100])
 		PricePerQuantity = strings.Replace(PricePerQuantity, "\n", "", -1)
+		if s[0]-20 > 0 {
+			if rl[2].FindString(allText[s[0]-60:s[0]]) != "" {
+				p.IsPromotion = true
+			}
+		}
 		// TODO Change the following assignment when getQuantity() is done
 		p.quantity = strings.TrimSpace(PricePerQuantity)
-		fmt.Println(p.GetStringRepresentation())
 		products[key] = p
-		os.Exit(1)
 	}
+	logger.Println("Couldn't set remaining info for these products: ", notFoundProducts)
 }
 
 func getQuantity(price string, PricePerQuantity string) string {
