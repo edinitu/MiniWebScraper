@@ -50,7 +50,7 @@ func (h *HtmlExtractor) GetHtmlPage(selenium bool) (string, error) {
 }
 
 func GetPageWithSelenium(link string) string {
-	defer wd.Quit()
+	//defer wd.Quit()
 
 	// Navigate to the target website
 	if err := wd.Get(link); err != nil {
@@ -62,7 +62,7 @@ func GetPageWithSelenium(link string) string {
 
 	// Get the dynamic HTML content
 	// TODO make scrolls a configuration per shop, should be >= 1
-	var scrolls int = 16
+	var scrolls int = 15
 	var pageSource string = ""
 
 	logger.Printf("Scrolling the page %v", link)

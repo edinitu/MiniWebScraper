@@ -1,7 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
+	"go_prj/db"
 	"log"
 	"os"
 	"regexp"
@@ -19,6 +21,7 @@ var logger = log.Logger{}
 var wd selenium.WebDriver
 
 func InitSelenium() {
+	logger.Println("Init Selenium Connection")
 	var err error
 	capabilities := selenium.Capabilities{"browserName": CHROME}
 	wd, err = selenium.NewRemote(capabilities, fmt.Sprintf("http://localhost:%d/wd/hub", SELENIUM_PORT))
@@ -32,9 +35,25 @@ func InitLogging() {
 	logger.SetOutput(os.Stdout)
 }
 
+func InitDbConnection() *sql.DB {
+	logger.Println("Init DB Connection")
+	pgconfig := db.PgConfig{
+		User:     "postgres",
+		Password: "admin",
+		Dbname:   "nssx",
+		Sslmode:  "disable",
+	}
+	dbConn, err := db.InitDb(pgconfig)
+	if err != nil {
+		logger.Fatalf("Could not connect to DB, abort, %v", err)
+	}
+	return dbConn
+}
+
 func main() {
 	InitLogging()
 	InitSelenium()
+	dbConn := InitDbConnection()
 
 	const link = "https://www.sephora.ro/"
 
@@ -55,10 +74,6 @@ func main() {
 
 	// TODO this should be made more abstract in a different function/service
 	// TODO This should be implemented for all links
-	NewNode, err := LinkToHtmlNode(links.links[0], true)
-	if err != nil {
-		logger.Fatalf("Could not get node for link %v", links.links[0])
-	}
 	r1 := regexp.MustCompile("[a-zA-Z ]+\n[a-zA-Z ;+,]+\n[a-zA-Z ;+,]+\\n")
 	r2 := regexp.MustCompile(`[0-9,. ]+Lei`)
 	r3 := regexp.MustCompile(`[0-9,. ]+Lei\s+\/\s+[0-9]+[a-z]`)
@@ -68,15 +83,21 @@ func main() {
 		name:     "Sephora",
 		patterns: []*regexp.Regexp{r1, r2, r3, r4},
 	}
-	err = shop.ProcessNode(NewNode, "")
-	if err != nil {
-		logger.Fatalf("Could not process node for shop %v", shop.name)
+	for _, link := range links.links {
+		defer wd.Quit()
+		NewNode, err := LinkToHtmlNode(link, true)
+		if err != nil {
+			logger.Fatalf("Could not get node for link %v", links.links[0])
+		}
+		err = shop.ProcessNode(NewNode, "")
+		if err != nil {
+			logger.Fatalf("Could not process node for shop %v", shop.name)
+		}
+		err = shop.ExtractProductsFromText(dbConn)
+		// after one processing is done, clear global variable
+		allText = ""
+		if err != nil {
+			logger.Fatalf("Couldn't process node for link %v", links.links[0])
+		}
 	}
-	err = shop.ExtractProductsFromText()
-	// after one processing is done, clear global variable
-	allText = ""
-	if err != nil {
-		logger.Fatalf("Couldn't process node for link %v", links.links[0])
-	}
-
 }

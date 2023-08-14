@@ -2,6 +2,7 @@
 package main
 
 import (
+	"database/sql"
 	"regexp"
 	"strings"
 
@@ -63,7 +64,7 @@ func (sh *Shop) ProcessNode(n *html.Node, s string) error {
 /*
 * Using the HTML text extracted, populate a map with all the products using different filters.
  */
-func (sh *Shop) ExtractProductsFromText() error {
+func (sh *Shop) ExtractProductsFromText(dbConn *sql.DB) error {
 	logger.Println("Initialize products from text")
 	firstMatches := sh.patterns[0].FindAllString(allText, -1)
 	filteredValues := firstFilter(firstMatches)
@@ -71,6 +72,12 @@ func (sh *Shop) ExtractProductsFromText() error {
 
 	products := initProducts(filteredValues, sh.id)
 	setRemainingInfo(products, []*regexp.Regexp{sh.patterns[1], sh.patterns[2], sh.patterns[3]})
+	err := persistProducts(products, dbConn)
+	if err != nil {
+		logger.Printf(ERROR+"Could not persist products to DB, %v", err)
+		return err
+	}
+	logger.Printf("Persisted %d products to DB", len(products))
 	return nil
 }
 
@@ -98,6 +105,7 @@ func initProducts(s []string, shopId uint64) map[string]Product {
 
 func setRemainingInfo(products map[string]Product, rl []*regexp.Regexp) {
 	notFoundProducts := []string{}
+	var count int = 0
 	for key, p := range products {
 		r := regexp.MustCompile(p.name)
 		s := r.FindIndex([]byte(allText))
@@ -106,6 +114,9 @@ func setRemainingInfo(products map[string]Product, rl []*regexp.Regexp) {
 			continue
 		}
 		p.price = rl[0].FindString(allText[s[1] : s[1]+80])
+		if p.price == "" {
+			count++
+		}
 		PricePerQuantity := rl[1].FindString(allText[s[1] : s[1]+100])
 		PricePerQuantity = strings.Replace(PricePerQuantity, "\n", "", -1)
 		if s[0]-20 > 0 {
@@ -115,9 +126,22 @@ func setRemainingInfo(products map[string]Product, rl []*regexp.Regexp) {
 		}
 		// TODO Change the following assignment when getQuantity() is done
 		p.quantity = strings.TrimSpace(PricePerQuantity)
+		p.SetDefaults()
 		products[key] = p
 	}
-	logger.Println("Couldn't set remaining info for these products: ", notFoundProducts)
+
+	if len(notFoundProducts) > 0 {
+		logger.Println("Could not set remaining info for these products: ", notFoundProducts)
+	}
+	if count > 0 {
+		logger.Println("Could not set price for number of products: ", count)
+	}
+}
+
+func persistProducts(products map[string]Product, dbConn *sql.DB) error {
+	//TODO get PostgreSQL connection and bulk insert the received products
+	err := dbConn.Ping()
+	return err
 }
 
 func getQuantity(price string, PricePerQuantity string) string {
