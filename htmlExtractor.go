@@ -73,11 +73,9 @@ func GetPageWithSelenium(link string) string {
 		}
 		// wait for the new elements to load
 		time.Sleep(2 * time.Second)
-		page, _ := wd.PageSource()
-		pageSource += page
 		scrolls--
 	}
-
+	pageSource, _ = wd.PageSource()
 	return pageSource
 }
 

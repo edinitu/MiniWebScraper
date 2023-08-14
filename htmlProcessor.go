@@ -3,6 +3,8 @@ package main
 
 import (
 	"database/sql"
+	"go_prj/db"
+	"go_prj/product"
 	"regexp"
 	"strings"
 
@@ -28,9 +30,10 @@ type ProductLinks struct {
 }
 
 type Shop struct {
-	id         uint64
-	name       string
-	patterns   []*regexp.Regexp
+	id       uint64
+	name     string
+	patterns []*regexp.Regexp
+	// TODO each shop should initialize this array
 	categories []string
 }
 
@@ -82,39 +85,39 @@ func (sh *Shop) ExtractProductsFromText(dbConn *sql.DB) error {
 }
 
 // @ToBeTested
-func initProducts(s []string, shopId uint64) map[string]Product {
+func initProducts(s []string, shopId uint64) map[string]product.Product {
 	var c uint64 = 0
-	products := make(map[string]Product)
+	products := make(map[string]product.Product)
 	// TODO This should be based on shop ID
 	for _, seq := range s {
 		lines := strings.Split(seq, "\n")
-		p := Product{
-			id:       c,
+		p := product.Product{
+			Id:       c,
 			ShopId:   shopId,
-			brand:    strings.TrimSpace(lines[0]),
-			name:     strings.TrimSpace(lines[1]),
-			category: strings.TrimSpace(lines[2]),
+			Brand:    strings.TrimSpace(lines[0]),
+			Name:     strings.TrimSpace(lines[1]),
+			Category: strings.TrimSpace(lines[2]),
 		}
-		_, ok := products[p.name]
+		_, ok := products[p.Name]
 		if !ok {
-			products[p.name] = p
+			products[p.Name] = p
 		}
 	}
 	return products
 }
 
-func setRemainingInfo(products map[string]Product, rl []*regexp.Regexp) {
+func setRemainingInfo(products map[string]product.Product, rl []*regexp.Regexp) {
 	notFoundProducts := []string{}
 	var count int = 0
 	for key, p := range products {
-		r := regexp.MustCompile(p.name)
+		r := regexp.MustCompile(p.Name)
 		s := r.FindIndex([]byte(allText))
 		if s == nil {
-			notFoundProducts = append(notFoundProducts, p.name)
+			notFoundProducts = append(notFoundProducts, p.Name)
 			continue
 		}
-		p.price = rl[0].FindString(allText[s[1] : s[1]+80])
-		if p.price == "" {
+		p.Price = rl[0].FindString(allText[s[1] : s[1]+80])
+		if p.Price == "" {
 			count++
 		}
 		PricePerQuantity := rl[1].FindString(allText[s[1] : s[1]+100])
@@ -125,7 +128,7 @@ func setRemainingInfo(products map[string]Product, rl []*regexp.Regexp) {
 			}
 		}
 		// TODO Change the following assignment when getQuantity() is done
-		p.quantity = strings.TrimSpace(PricePerQuantity)
+		p.Quantity = strings.TrimSpace(PricePerQuantity)
 		p.SetDefaults()
 		products[key] = p
 	}
@@ -138,10 +141,14 @@ func setRemainingInfo(products map[string]Product, rl []*regexp.Regexp) {
 	}
 }
 
-func persistProducts(products map[string]Product, dbConn *sql.DB) error {
+func persistProducts(products map[string]product.Product, dbConn *sql.DB) error {
 	//TODO get PostgreSQL connection and bulk insert the received products
 	err := dbConn.Ping()
-	return err
+	if err != nil {
+		return err
+	}
+	db.InsertProducts(products, dbConn)
+	return nil
 }
 
 func getQuantity(price string, PricePerQuantity string) string {
