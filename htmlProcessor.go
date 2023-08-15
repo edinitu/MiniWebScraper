@@ -2,7 +2,6 @@
 package main
 
 import (
-	"database/sql"
 	"go_prj/db"
 	"go_prj/product"
 	"regexp"
@@ -21,7 +20,12 @@ import (
 var allText string
 
 type NodeProcessor interface {
-	ProcessNode(n *html.Node, exps []*regexp.Regexp) error
+	ProcessNode(n *html.Node, s string) error
+}
+
+type ShopService interface {
+	ExtractProductsFromText() error
+	SetCategories(p *ProductLinks)
 }
 
 type ProductLinks struct {
@@ -30,11 +34,11 @@ type ProductLinks struct {
 }
 
 type Shop struct {
-	id       uint64
-	name     string
-	patterns []*regexp.Regexp
-	// TODO each shop should initialize this array
-	categories []string
+	id            uint64
+	name          string
+	patterns      []*regexp.Regexp
+	CategoryLinks map[string]string
+	db            *db.DbConn
 }
 
 func (p *ProductLinks) ProcessNode(n *html.Node, s string) error {
@@ -67,21 +71,37 @@ func (sh *Shop) ProcessNode(n *html.Node, s string) error {
 /*
 * Using the HTML text extracted, populate a map with all the products using different filters.
  */
-func (sh *Shop) ExtractProductsFromText(dbConn *sql.DB) error {
+func (sh *Shop) ExtractProductsFromText(category string) error {
 	logger.Println("Initialize products from text")
 	firstMatches := sh.patterns[0].FindAllString(allText, -1)
 	filteredValues := firstFilter(firstMatches)
 	filteredValues = secondFilter(filteredValues)
 
 	products := initProducts(filteredValues, sh.id)
-	setRemainingInfo(products, []*regexp.Regexp{sh.patterns[1], sh.patterns[2], sh.patterns[3]})
-	err := persistProducts(products, dbConn)
+	setRemainingInfo(
+		products,
+		[]*regexp.Regexp{sh.patterns[1], sh.patterns[2], sh.patterns[3]},
+		category)
+	err := persistProducts(products, sh.db)
 	if err != nil {
 		logger.Printf(ERROR+"Could not persist products to DB, %v", err)
 		return err
 	}
 	logger.Printf("Persisted %d products to DB", len(products))
 	return nil
+}
+
+func (s *Shop) SetCategories(p *ProductLinks) {
+	s.CategoryLinks = make(map[string]string)
+	for _, link := range p.links {
+		s.CategoryLinks[GetCategoryFromLink(link, s.patterns[4])] = link
+	}
+}
+
+func GetCategoryFromLink(link string, r *regexp.Regexp) string {
+	s := r.Find([]byte(link))
+	re := strings.Trim(string(s), "-")
+	return strings.Trim(re, "/")
 }
 
 // @ToBeTested
@@ -106,7 +126,7 @@ func initProducts(s []string, shopId uint64) map[string]product.Product {
 	return products
 }
 
-func setRemainingInfo(products map[string]product.Product, rl []*regexp.Regexp) {
+func setRemainingInfo(products map[string]product.Product, rl []*regexp.Regexp, category string) {
 	notFoundProducts := []string{}
 	var count int = 0
 	for key, p := range products {
@@ -129,21 +149,22 @@ func setRemainingInfo(products map[string]product.Product, rl []*regexp.Regexp) 
 		}
 		// TODO Change the following assignment when getQuantity() is done
 		p.Quantity = strings.TrimSpace(PricePerQuantity)
+		p.Category = category
 		p.SetDefaults()
 		products[key] = p
 	}
 
 	if len(notFoundProducts) > 0 {
-		logger.Println("Could not set remaining info for these products: ", notFoundProducts)
+		logger.Println("Could not set remaining info for these products:", notFoundProducts)
 	}
 	if count > 0 {
-		logger.Println("Could not set price for number of products: ", count)
+		logger.Println("Could not set price for number of products:", count)
 	}
 }
 
-func persistProducts(products map[string]product.Product, dbConn *sql.DB) error {
+func persistProducts(products map[string]product.Product, dbConn *db.DbConn) error {
 	//TODO get PostgreSQL connection and bulk insert the received products
-	err := dbConn.Ping()
+	err := dbConn.Db.Ping()
 	if err != nil {
 		return err
 	}

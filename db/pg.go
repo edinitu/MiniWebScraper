@@ -17,7 +17,11 @@ type PgConfig struct {
 	Sslmode  string
 }
 
-func InitDb(config PgConfig) (*sql.DB, error) {
+type DbConn struct {
+	Db *sql.DB
+}
+
+func InitDb(config PgConfig) (*DbConn, error) {
 	var connStr = "user=" + config.User + " password=" + config.Password +
 		" dbname=" + config.Dbname + " sslmode=" + config.Sslmode
 	db, err := sql.Open(POSTGRE_DRIVER, connStr)
@@ -25,11 +29,11 @@ func InitDb(config PgConfig) (*sql.DB, error) {
 		log.Println("Could not open database connection")
 		return nil, err
 	}
-	return db, nil
+	return &DbConn{Db: db}, nil
 }
 
-func InsertProducts(products map[string]product.Product, dbConn *sql.DB) {
-	st, err := dbConn.Prepare("INSERT INTO nssx.services(service_name) values ($1) RETURNING service_id")
+func InsertProducts(products map[string]product.Product, conn *DbConn) {
+	st, err := conn.Db.Prepare("INSERT INTO nssx.services(service_name) values ($1) RETURNING service_id")
 	if err != nil {
 		log.Println(err)
 	}

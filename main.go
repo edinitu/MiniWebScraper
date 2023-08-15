@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"go_prj/db"
 	"log"
@@ -35,7 +34,7 @@ func InitLogging() {
 	logger.SetOutput(os.Stdout)
 }
 
-func InitDbConnection() *sql.DB {
+func InitDbConnection() *db.DbConn {
 	logger.Println("Init DB Connection")
 	pgconfig := db.PgConfig{
 		User:     "postgres",
@@ -78,26 +77,34 @@ func main() {
 	r2 := regexp.MustCompile(`[0-9,. ]+Lei`)
 	r3 := regexp.MustCompile(`[0-9,. ]+Lei\s+\/\s+[0-9]+[a-z]`)
 	r4 := regexp.MustCompile("Promo")
+	r5 := regexp.MustCompile(`\/[a-z]+-`)
+
 	shop := &Shop{
 		id:       1,
 		name:     "Sephora",
-		patterns: []*regexp.Regexp{r1, r2, r3, r4},
+		patterns: []*regexp.Regexp{r1, r2, r3, r4, r5},
+		db:       dbConn,
 	}
-	for _, link := range links.links {
+	shop.SetCategories(links)
+
+	for category, link := range shop.CategoryLinks {
 		defer wd.Quit()
+
 		NewNode, err := LinkToHtmlNode(link, true)
 		if err != nil {
 			logger.Fatalf("Could not get node for link %v", links.links[0])
 		}
+
 		err = shop.ProcessNode(NewNode, "")
 		if err != nil {
 			logger.Fatalf("Could not process node for shop %v", shop.name)
 		}
-		err = shop.ExtractProductsFromText(dbConn)
-		// after one processing is done, clear global variable
-		allText = ""
+
+		err = shop.ExtractProductsFromText(category)
 		if err != nil {
 			logger.Fatalf("Couldn't process node for link %v", links.links[0])
 		}
+		// after one link processing is done, clear global variable
+		allText = ""
 	}
 }
