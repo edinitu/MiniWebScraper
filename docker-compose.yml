@@ -1,0 +1,17 @@
+---
+version: "3"
+services:
+  postgres:
+    image: postgres:13.0
+    container_name: postgres
+    hostname: postgres
+    command: >
+      -c work_mem=128MB
+      -c maintenance_work_mem=256MB
+      -c max_parallel_workers_per_gather=4
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=go_prj
